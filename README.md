@@ -14,18 +14,19 @@ Box-shaped object sorting constitutes a critical task within industrial automati
 
 # Experimental index
 ## Result on SYN-PBOX
-Method	Modality	mAP50	mAP50-95
-(2021)CFT	RGBD 	0.953 	0.896 
-(2023)SuperYOLO	RGBD 	0.954 	0.886 
-(2023)YOLOv8m	RGBD 	0.957 	0.895 
-(2024)YOLOv10m	RGBD 	0.955 	0.898 
-(2024)YOLO11m	RGBD 	0.951 	0.889 
-(2024)BGF-YOLO	RGBD 	0.847 	0.770 
-(2025)YOLOv12m	RGBD 	0.953 	0.895 
-(2025)AS-YOLO	RGBD 	0.856 	0.786 
-(2025)DEYOLO	RGBD 	0.951 	0.890 
-(2025)DS-YOLO	RGBD 	0.958 	0.901 
-ours	RGBD 	0.970 	0.932 
-![图片](https://github.com/user-attachments/assets/1cd5f4a9-62b5-41af-b723-dd39b1d048de)
+Method|Modality|mAP50|mAP50-95
+:-:|:-:|:-:|
+(2021)CFT|RGBD|0.953|0.896 
+(2023)SuperYOLO|RGBD|0.954|0.886 
+(2023)YOLOv8m	RGBD|0.957|0.895 
+(2024)YOLOv10m|RGBD|0.955|0.898 
+(2024)YOLO11m|RGBD|0.951|0.889 
+(2024)BGF-YOLO|RGBD|0.847|0.770 
+(2025)YOLOv12m|RGBD|0.953|0.895 
+(2025)AS-YOLO|RGBD|0.856|0.786 
+(2025)DEYOLO|RGBD|0.951|0.890 
+(2025)DS-YOLO|RGBD|0.958|0.901 
+ours|RGBD|0.970|0.932 
+
 
 
