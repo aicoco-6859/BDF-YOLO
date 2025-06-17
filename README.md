@@ -15,7 +15,7 @@ Box-shaped object sorting constitutes a critical task within industrial automati
 # Experimental index
 ## Result on SYN-PBOX
 | Method          | Modality | mAP50  | mAP50-95 |
-| :-------------- | :------- | :----: | :------: |
+| :-------------: | :------: | :----: | :------: |
 | (2021)CFT       | RGBD     | 0.953  |  0.896   |
 | (2023)SuperYOLO | RGBD     | 0.954  |  0.886   |
 | (2023)YOLOv8m   | RGBD     | 0.957  |  0.895   |
