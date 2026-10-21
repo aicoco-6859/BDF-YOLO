@@ -1,0 +1,215 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLOv8-seg instance segmentation model. For Usage examples see https://docs.ultralytics.com/tasks/segment
+
+# v8的scale，backbone中128,256,512等参数不和11的一样，采用的v5的Conv，但是层数29,25添成了28,24。最后是34
+# 针对yolo改进项目中，yolov8CGRFPN项目的双流改进。还有一个是yolov10CGRFPN，两者在backbone出有不同。两者原先都是用于检测。
+# 本yaml只改neck部分，backbone部分不改。
+# PyramidContextExtraction Module使用金字塔上下文提取模块（PyramidContextExtraction），有效整合不同层级的特征信息，提升模型的上下文感知能力。
+# FuseBlockMulti 和 DynamicInterpolationFusion 这些模块用于多尺度特征的融合，通过动态插值和多特征融合，进一步提高了模型的多尺度特征表示能力和提升模型对复杂背景下目标的识别能力。
+# PyramidContextExtraction对RGB的P3、P4、P5进行融合
+# Depth的P3、P4、P5，每个经过RCM后，再用FuseBlockMulti与融合过的RGB对应P3、P4、P5进行融合
+
+# Parameters
+nc: 80  # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolov8n-seg.yaml' will call yolov8m-seg.yaml with scale 'n'
+  # [depth, width, max_channels]
+  n: [ 0.50, 0.25, 1024 ]
+  s: [ 0.50, 0.50, 1024 ]
+  m: [ 0.50, 1.00, 512 ]
+  l: [ 1.00, 1.00, 512 ]
+  x: [ 1.00, 1.50, 512 ]
+
+# YOLOv11.0n backbone
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]  # 1-P2/4
+  - [-1, 2, C3k2, [128, True]]
+  - [-1, 1, Conv, [256, 3, 2]]  # 3-P3/8
+  - [-1, 2, C3k2, [256, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 5-P4/16
+  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 7-P4/16
+  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, Conv, [1024, 3, 2]]  # 9-P5/32
+  - [-1, 2, C3k2, [1024, True]]
+  - [-1, 1, SPPF, [1024, 5]] # 11
+  - [-1, 2, C2PSA, [1024]] # 12
+
+  - [-4, 1, Conv, [64, 3, 2]]  # 13-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]  # 14-P2/4
+  - [-1, 2, C3k2, [128, True]]
+  - [-1, 1, Conv, [256, 3, 2]]  # 16-P3/8
+  - [-1, 2, C3k2, [256, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 18-P4/16
+  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, Conv, [512, 3, 2]]  # 20-P4/16
+  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, Conv, [1024, 3, 2]]  # 22-P5/32
+  - [-1, 2, C3k2, [1024, True]]
+  - [-1, 1, SPPF, [1024, 5]] # 24
+  - [-1, 2, C2PSA, [1024]] # 25
+
+
+
+# YOLOv11.0n head
+head:
+  - [[4, 6, 8, 12], 1, PCE4, []] # 26
+  - [26, 1, GetIndexOutput, [0]] # 27-P3/8
+  - [26, 1, GetIndexOutput, [1]] # 28-P4/16
+  - [26, 1, GetIndexOutput, [2]] # 29-P5/32
+  - [26, 1, GetIndexOutput, [3]] # 30-P5/32
+
+  - [25, 1, LA, []] # 31-P5/32
+  - [[-1, 30], 1, FuseBlockMulti, []] # 32-P5/32
+
+  - [21, 1, LA, []] # 33-P4/16
+  - [[-1, 32], 1, DynamicInterpolationFusion, []] # 34-P4/16
+  - [[-1, 29], 1, FuseBlockMulti, []] # 35-P4/16
+
+  - [19, 1, LA, []] # 36-P4/16
+  - [[-1, 35], 1, DynamicInterpolationFusion, []] # 37-P4/16
+  - [[-1, 28], 1, FuseBlockMulti, []] # 38-P4/16
+
+  - [17, 1, LA, []] # 39-P3/8
+  - [[-1, 38], 1, DynamicInterpolationFusion, []] # 40-P3/8
+  - [[-1, 27], 1, FuseBlockMulti, []] # 41-P3/8
+
+  - [-1, 1, Conv, [256, 3, 2]] # 42-P4/16
+  - [[-1, 38], 1, Concat, [1]] # 43-P4/16
+  - [-1, 2, C3k2, [256,False]] # 44-P4/16
+
+  - [-1, 1, Conv, [256, 3, 2]] # 45-P4/16
+  - [[-1, 35], 1, Concat, [1]] # 46-P4/16
+  - [-1, 2, C3k2, [512,False]] # 47-P4/16
+
+  - [-1, 1, Conv, [512, 3, 2]] # 48-P5/32
+  - [[-1, 32], 1, Concat, [1]] # 49-P5/32
+  - [-1, 2, C3k2, [1024,True]] # 50-P5/32
+
+  - [[44, 47, 50], 1, Segment, [nc, 32, 256]]  # Segment(P3, P4, P5)
+
+
+#+------------------------------------+
+#| Model Flops:86.046G Params:39.557M |
+#+-----------+-----------+------------+
+#|  Layer ID |   FLOPs   |   Params   |
+#+-----------+-----------+------------+
+#|     0     |  353.894M |   1.792K   |
+#|     1     |   3.775G  |  73.856K   |
+#|     2     |   4.404G  |  86.528K   |
+#|     3     |   3.775G  |  295.168K  |
+#|     4     |   4.404G  |  345.088K  |
+#|     5     |   3.775G  |   1.180M   |
+#|     6     |   4.404G  |   1.378M   |
+#|     7     |   1.887G  |   2.360M   |
+#|     8     |   1.101G  |   1.378M   |
+#|     9     |  471.859M |   2.360M   |
+#|     10    |  275.251M |   1.378M   |
+#|     11    |  131.072M |  656.128K  |
+#|     12    |  197.069M |  988.160K  |
+#|     13    |  353.894M |   1.792K   |
+#|     14    |   3.775G  |  73.856K   |
+#|     15    |   4.404G  |  86.528K   |
+#|     16    |   3.775G  |  295.168K  |
+#|     17    |   4.404G  |  345.088K  |
+#|     18    |   3.775G  |   1.180M   |
+#|     19    |   4.404G  |   1.378M   |
+#|     20    |   1.887G  |   2.360M   |
+#|     21    |   1.101G  |   1.378M   |
+#|     22    |  471.859M |   2.360M   |
+#|     23    |  275.251M |   1.378M   |
+#|     24    |  131.072M |  656.128K  |
+#|     25    |  197.069M |  988.160K  |
+#|     26    |   9.820M  |  189.952K  |
+#|     27    |   0.000B  |   0.000B   |
+#|     28    |   0.000B  |   0.000B   |
+#|     29    |   0.000B  |   0.000B   |
+#|     30    |   0.000B  |   0.000B   |
+#|     31    |  54.097M  |  336.832K  |
+#|     32    |  66.048M  |  526.336K  |
+#|     33    |  215.991M |  336.832K  |
+#|     34    |  209.715M |  262.656K  |
+#|     35    |  224.563M |  526.336K  |
+#|     36    |  863.569M |  336.832K  |
+#|     37    |  838.861M |  262.656K  |
+#|     38    |  858.624M |  526.336K  |
+#|     39    |  888.046M |  86.496K   |
+#|     40    |   1.678G  |  131.328K  |
+#|     41    |  855.296M |  132.096K  |
+#|     42    |   1.887G  |  590.080K  |
+#|     43    |   0.000B  |   0.000B   |
+#|     44    |   1.520G  |  476.160K  |
+#|     45    |  471.859M |  590.080K  |
+#|     46    |   0.000B  |   0.000B   |
+#|     47    |   1.206G  |   1.509M   |
+#|     48    |  471.859M |   2.360M   |
+#|     49    |   0.000B  |   0.000B   |
+#|     50    |  327.680M |   1.640M   |
+#|     51    |  15.490G  |   3.774M   |
+#+-----------+-----------+------------+
+#
+#                   from  n    params  module                                       arguments
+#  0                  -1  1      1856  ultralytics.nn.modules.conv.Conv             [3, 64, 3, 2]
+#  1                  -1  1     73984  ultralytics.nn.modules.conv.Conv             [64, 128, 3, 2]
+#  2                  -1  1     87040  ultralytics.nn.modules.v11.C3k2              [128, 128, 1, True]
+#  3                  -1  1    295424  ultralytics.nn.modules.conv.Conv             [128, 256, 3, 2]
+#  4                  -1  1    346112  ultralytics.nn.modules.v11.C3k2              [256, 256, 1, True]
+#  5                  -1  1   1180672  ultralytics.nn.modules.conv.Conv             [256, 512, 3, 2]
+#  6                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+#  7                  -1  1   2360320  ultralytics.nn.modules.conv.Conv             [512, 512, 3, 2]
+#  8                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+#  9                  -1  1   2360320  ultralytics.nn.modules.conv.Conv             [512, 512, 3, 2]
+# 10                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+# 11                  -1  1    656896  ultralytics.nn.modules.block.SPPF            [512, 512, 5]
+# 12                  -1  1    990976  ultralytics.nn.modules.v11.C2PSA             [512, 512, 1]
+# 13                  -4  1      1856  ultralytics.nn.modules.conv.Conv             [3, 64, 3, 2]
+# 14                  -1  1     73984  ultralytics.nn.modules.conv.Conv             [64, 128, 3, 2]
+# 15                  -1  1     87040  ultralytics.nn.modules.v11.C3k2              [128, 128, 1, True]
+# 16                  -1  1    295424  ultralytics.nn.modules.conv.Conv             [128, 256, 3, 2]
+# 17                  -1  1    346112  ultralytics.nn.modules.v11.C3k2              [256, 256, 1, True]
+# 18                  -1  1   1180672  ultralytics.nn.modules.conv.Conv             [256, 512, 3, 2]
+# 19                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+# 20                  -1  1   2360320  ultralytics.nn.modules.conv.Conv             [512, 512, 3, 2]
+# 21                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+# 22                  -1  1   2360320  ultralytics.nn.modules.conv.Conv             [512, 512, 3, 2]
+# 23                  -1  1   1380352  ultralytics.nn.modules.v11.C3k2              [512, 512, 1, True]
+# 24                  -1  1    656896  ultralytics.nn.modules.block.SPPF            [512, 512, 5]
+# 25                  -1  1    990976  ultralytics.nn.modules.v11.C2PSA             [512, 512, 1]
+# 26       [4, 6, 8, 12]  1    189952  ultralytics.nn.extra_models.PCE4             [[256, 512, 512, 512], 4]
+# 27                  26  1         0  ultralytics.nn.extra_models.GetIndexOutput   [0]
+# 28                  26  1         0  ultralytics.nn.extra_models.GetIndexOutput   [1]
+# 29                  26  1         0  ultralytics.nn.extra_models.GetIndexOutput   [2]
+# 30                  26  1         0  ultralytics.nn.extra_models.GetIndexOutput   [3]
+# 31                  25  1    336832  ultralytics.nn.extra_models.LA               [512]
+# 32            [-1, 30]  1    526336  ultralytics.nn.extra_models.FuseBlockMulti   [512]
+# 33                  21  1    336832  ultralytics.nn.extra_models.LA               [512]
+# 34            [-1, 32]  1    262656  ultralytics.nn.extra_models.DynamicInterpolationFusion[[512, 512]]
+# 35            [-1, 29]  1    526336  ultralytics.nn.extra_models.FuseBlockMulti   [512]
+# 36                  19  1    336832  ultralytics.nn.extra_models.LA               [512]
+# 37            [-1, 35]  1    262656  ultralytics.nn.extra_models.DynamicInterpolationFusion[[512, 512]]
+# 38            [-1, 28]  1    526336  ultralytics.nn.extra_models.FuseBlockMulti   [512]
+# 39                  17  1     86496  ultralytics.nn.extra_models.LA               [256]
+# 40            [-1, 38]  1    131328  ultralytics.nn.extra_models.DynamicInterpolationFusion[[256, 512]]
+# 41            [-1, 27]  1    132096  ultralytics.nn.extra_models.FuseBlockMulti   [256]
+# 42                  -1  1    590336  ultralytics.nn.modules.conv.Conv             [256, 256, 3, 2]
+# 43            [-1, 38]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 44                  -1  1    477184  ultralytics.nn.modules.v11.C3k2              [768, 256, 1, True]
+# 45                  -1  1    590336  ultralytics.nn.modules.conv.Conv             [256, 256, 3, 2]
+# 46            [-1, 35]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 47                  -1  1   1511424  ultralytics.nn.modules.v11.C3k2              [768, 512, 1, True]
+# 48                  -1  1   2360320  ultralytics.nn.modules.conv.Conv             [512, 512, 3, 2]
+# 49            [-1, 32]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 50                  -1  1   1642496  ultralytics.nn.modules.v11.C3k2              [1024, 512, 1, True]
+# 51        [44, 47, 50]  1   3778912  ultralytics.nn.modules.head.Segment          [80, 32, 256, [256, 512, 512]]
+#YOLOv11m-CGRFPN4-LA summary: 826 layers, 39595008 parameters, 39594992 gradients, 86.9 GFLOPs
+#
+#
+#0: 512x640 (no detections), 35.0ms
+#
+#Speed: 2.0ms preprocess, 35.0ms inference, 1.0ms postprocess per image at shape (1, 3, 512, 640)
+#
+#
+#======================== 1 passed, 6 warnings in 7.74s ========================
+#
+#进程已结束,退出代码0

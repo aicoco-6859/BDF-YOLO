@@ -1,0 +1,162 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLOv8-seg instance segmentation model. For Usage examples see https://docs.ultralytics.com/tasks/segment
+
+#v8的scale，backbone中128,256,512等参数不和11的一样，采用的v5的Conv，但是层数29,25添成了28,24。最后是34
+
+# Parameters
+nc: 80  # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolov8n-seg.yaml' will call yolov8m-seg.yaml with scale 'n'
+  # [depth, width, max_channels]
+  # [depth, width, max_channels]
+  n: [ 0.33, 0.25, 1024 ]
+  s: [ 0.33, 0.50, 1024 ]
+  m: [ 0.67, 0.75, 768 ]
+  l: [ 1.00, 1.00, 512 ]
+  x: [ 1.00, 1.25, 512 ]
+
+# YOLOv11.0n backbone
+backbone:
+  # [from, repeats, module, args]
+  - [ -1, 1, Conv, [ 64, 3, 2 ] ]  # 0-P1/2
+  - [ -1, 1, Conv, [ 128, 3, 2 ] ]  # 1-P2/4
+  - [ -1, 2, C3k2_RGB, [ 128, True ] ]
+  - [ -1, 1, Conv, [ 256, 3, 2 ] ]  # 3-P3/8
+  - [ -1, 2, C3k2_RGB, [ 256, True ] ]
+  - [ -1, 1, Conv, [ 512, 3, 2 ] ]  # 5-P4/16
+  - [ -1, 2, C3k2_RGB, [ 512, True ] ]
+  - [ -1, 1, Conv, [ 1024, 3, 2 ] ]  # 7-P5/32
+  - [ -1, 2, C3k2_RGB, [ 1024, True ] ]
+  - [ -1, 1, SPPF, [ 1024, 5 ] ] # 9
+  - [ -1, 2, C2PSA, [ 1024 ] ] # 10
+
+
+  - [ -4, 1, Conv, [ 64, 3, 2 ] ]  # 11-P1/2
+  - [ -1, 1, Conv, [ 128, 3, 2 ] ]  # 12-P2/4
+  - [ -1, 2, C3k2_Depth, [ 128, True ] ]
+  - [ -1, 1, Conv, [ 256, 3, 2 ] ]  # 14-P3/8
+  - [ -1, 2, C3k2_Depth, [ 256, True ] ]
+  - [ -1, 1, Conv, [ 512, 3, 2 ] ]  # 16-P4/16
+  - [ -1, 2, C3k2_Depth, [ 512, True ] ]
+  - [ -1, 1, Conv, [ 1024, 3, 2 ] ]  # 18-P5/32
+  - [ -1, 2, C3k2_Depth, [ 1024, True ] ]
+  - [ -1, 1, SPPF, [ 1024, 5 ] ]   # 20
+  - [ -1, 2, C2PSA, [ 1024 ] ] # 21
+
+  # add
+  - [ [ 4,15 ], 1,CGFM, [ ] ] #22
+  - [ [ 6,17 ], 1, CGFM, [ ] ] #23
+  - [ [ 10,21 ], 1, CGFM, [ ] ] #24
+
+# YOLOv11.0n head
+head:
+  #- [-1, 1, SEAttention, []] #25
+  - [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ] #25
+  - [ [ -1, 23 ], 1, Concat, [ 1 ] ]  # cat backbone P4
+  - [ -1, 2, C3k2, [ 512,False ] ]  # 27
+
+  # - [-1, 1, SEAttention, []] #29
+  - [ -1, 1, nn.Upsample, [ None, 2, 'nearest' ] ] #28
+  - [ [ -1, 22 ], 1, Concat, [ 1 ] ]  # cat backbone P3
+  - [ -1, 2, C3k2, [ 256,False ] ]  # 30 (P3/8-small)
+
+  #- [-1, 1, LA, []] #31
+  - [ -1, 1, Conv, [ 256, 3, 2 ] ] #31
+  - [ [ -1, 27 ], 1, Concat, [ 1 ] ]  # cat head P4
+  - [ -1, 2, C3k2, [ 512,False ] ]  # 33 (P4/16-medium)
+
+  #- [-1, 1, LA, []] #35
+  - [ -1, 1, Conv, [ 512, 3, 2 ] ] #34
+  - [ [ -1, 24 ], 1, Concat, [ 1 ] ]  # cat head P5
+  - [ -1, 2, C3k2, [ 1024,True ] ]  # 36 (P5/32-large)
+
+  - [ [ 30, 33, 36 ], 1, Segment, [ nc, 32, 256 ] ]  # Segment(P3, P4, P5)
+
+#+------------------------------------+
+#| Model Flops:88.284G Params:24.334M |
+#+-----------+-----------+------------+
+#|  Layer ID |   FLOPs   |   Params   |
+#+-----------+-----------+------------+
+#|     0     |  265.421M |   1.344K   |
+#|     1     |   2.123G  |  41.568K   |
+#|     2     |   2.367G  |  45.576K   |
+#|     3     |   2.123G  |  166.080K  |
+#|     4     |   2.334G  |  181.008K  |
+#|     5     |   2.123G  |  663.936K  |
+#|     6     |   2.317G  |  721.440K  |
+#|     7     |   1.593G  |   1.991M   |
+#|     8     |   1.300G  |   1.621M   |
+#|     9     |  663.552M |  830.304K  |
+#|     10    |  997.402M |   1.250M   |
+#|     11    |  265.421M |   1.344K   |
+#|     12    |   2.123G  |  41.568K   |
+#|     13    |   2.608G  |  50.304K   |
+#|     14    |   2.123G  |  166.080K  |
+#|     15    |   2.572G  |  199.680K  |
+#|     16    |   2.123G  |  663.936K  |
+#|     17    |   2.554G  |  795.648K  |
+#|     18    |   1.593G  |   1.991M   |
+#|     19    |   1.433G  |   1.788M   |
+#|     20    |  663.552M |  830.304K  |
+#|     21    |  997.402M |   1.250M   |
+#|     22    |   0.000B  |   0.000B   |
+#|     23    |   0.000B  |   0.000B   |
+#|     24    |   0.000B  |   0.000B   |
+#|     25    |   3.686M  |   0.000B   |
+#|     26    |   0.000B  |   0.000B   |
+#|     27    |   4.365G  |   1.366M   |
+#|     28    |   4.915M  |   0.000B   |
+#|     29    |   0.000B  |   0.000B   |
+#|     30    |   3.893G  |  304.896K  |
+#|     31    |   1.062G  |  331.968K  |
+#|     32    |   0.000B  |   0.000B   |
+#|     33    |   2.713G  |  849.408K  |
+#|     34    |   1.062G  |   1.327M   |
+#|     35    |   0.000B  |   0.000B   |
+#|     36    |   1.836G  |   2.297M   |
+#|     37    |  36.082G  |   2.566M   |
+#+-----------+-----------+------------+
+#
+#                   from  n    params  module                                       arguments
+#  0                  -1  1      1392  ultralytics.nn.modules.conv.Conv             [3, 48, 3, 2]
+#  1                  -1  1     41664  ultralytics.nn.modules.conv.Conv             [48, 96, 3, 2]
+#  2                  -1  1     45576  ultralytics.nn.extra_models.C3k2_RGB         [96, 96, 1, True]
+#  3                  -1  1    166272  ultralytics.nn.modules.conv.Conv             [96, 192, 3, 2]
+#  4                  -1  1    181008  ultralytics.nn.extra_models.C3k2_RGB         [192, 192, 1, True]
+#  5                  -1  1    664320  ultralytics.nn.modules.conv.Conv             [192, 384, 3, 2]
+#  6                  -1  1    721440  ultralytics.nn.extra_models.C3k2_RGB         [384, 384, 1, True]
+#  7                  -1  1   1991808  ultralytics.nn.modules.conv.Conv             [384, 576, 3, 2]
+#  8                  -1  1   1621296  ultralytics.nn.extra_models.C3k2_RGB         [576, 576, 1, True]
+#  9                  -1  1    831168  ultralytics.nn.modules.block.SPPF            [576, 576, 5]
+# 10                  -1  1   1253088  ultralytics.nn.modules.v11.C2PSA             [576, 576, 1]
+# 11                  -4  1      1392  ultralytics.nn.modules.conv.Conv             [3, 48, 3, 2]
+# 12                  -1  1     41664  ultralytics.nn.modules.conv.Conv             [48, 96, 3, 2]
+# 13                  -1  1     50304  ultralytics.nn.extra_models.C3k2_Depth       [96, 96, 1, True]
+# 14                  -1  1    166272  ultralytics.nn.modules.conv.Conv             [96, 192, 3, 2]
+# 15                  -1  1    199680  ultralytics.nn.extra_models.C3k2_Depth       [192, 192, 1, True]
+# 16                  -1  1    664320  ultralytics.nn.modules.conv.Conv             [192, 384, 3, 2]
+# 17                  -1  1    795648  ultralytics.nn.extra_models.C3k2_Depth       [384, 384, 1, True]
+# 18                  -1  1   1991808  ultralytics.nn.modules.conv.Conv             [384, 576, 3, 2]
+# 19                  -1  1   1787904  ultralytics.nn.extra_models.C3k2_Depth       [576, 576, 1, True]
+# 20                  -1  1    831168  ultralytics.nn.modules.block.SPPF            [576, 576, 5]
+# 21                  -1  1   1253088  ultralytics.nn.modules.v11.C2PSA             [576, 576, 1]
+# 22             [4, 15]  1         0  ultralytics.nn.extra_models.CGFM             [[192, 192]]
+# 23             [6, 17]  1         0  ultralytics.nn.extra_models.CGFM             [[384, 384]]
+# 24            [10, 21]  1         0  ultralytics.nn.extra_models.CGFM             [[576, 576]]
+# 25                  -1  1         0  torch.nn.modules.upsampling.Upsample         [None, 2, 'nearest']
+# 26            [-1, 23]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 27                  -1  1   1367040  ultralytics.nn.modules.v11.C3k2              [1920, 384, 1, True]
+# 28                  -1  1         0  torch.nn.modules.upsampling.Upsample         [None, 2, 'nearest']
+# 29            [-1, 22]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 30                  -1  1    305664  ultralytics.nn.modules.v11.C3k2              [768, 192, 1, True]
+# 31                  -1  1    332160  ultralytics.nn.modules.conv.Conv             [192, 192, 3, 2]
+# 32            [-1, 27]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 33                  -1  1    850944  ultralytics.nn.modules.v11.C3k2              [576, 384, 1, True]
+# 34                  -1  1   1327872  ultralytics.nn.modules.conv.Conv             [384, 384, 3, 2]
+# 35            [-1, 24]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+# 36                  -1  1   2299392  ultralytics.nn.modules.v11.C3k2              [1536, 576, 1, True]
+# 37        [30, 33, 36]  1   2570144  ultralytics.nn.modules.head.Segment          [80, 32, 192, [192, 384, 576]]
+#YOLOv11m-CGFM-C3k2_RD-2_all summary: 565 layers, 24355496 parameters, 24355480 gradients, 88.7 GFLOPs
+
+
+
+
